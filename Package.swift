@@ -14,13 +14,13 @@ let package = Package(
     dependencies: [],
     targets: [
         .binaryTarget(
-            name: "TensorFlowLiteC",
-            url: "https://github.com/readdle/tensorflow-lite-swift/releases/download/2.15.0/TensorFlowLiteC-2.15.0.xcframework.zip",
-            checksum: "5cf7ded5cee62c97e0975fda74a7d798e150d6b0bd13dd745650c765ef66c7ea"
+            name: "RDTensorFlowLiteC",
+            url: "https://github.com/readdle/tensorflow-lite-swift/releases/download/2.15.0/RDTensorFlowLiteC-2.15.0.xcframework.zip",
+            checksum: "2266eb72627f829be3f87b826f40d350d74a8df69837267698af4ec98799ae11"
         ),
         .target(
             name: "TensorFlowLite",
-            dependencies: ["TensorFlowLiteC"],
+            dependencies: ["RDTensorFlowLiteC"],
             linkerSettings: [
                 .linkedLibrary("tensorflowlite_jni", .when(platforms: [.android]))
             ]

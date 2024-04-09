@@ -14,6 +14,10 @@
 
 import Foundation
 
+#if canImport(RDTensorFlowLiteC)
+import RDTensorFlowLiteC
+#endif
+
 #if canImport(TensorFlowLiteC)
 import TensorFlowLiteC
 #endif
