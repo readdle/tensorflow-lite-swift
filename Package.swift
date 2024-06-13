@@ -6,6 +6,10 @@ import PackageDescription
 
 let package = Package(
     name: "TensorFlowLite",
+    platforms: [
+        .iOS(.v12),
+        .macOS(.v11)
+    ],
     products: [
         .library(
             name: "TensorFlowLite",
@@ -14,14 +18,14 @@ let package = Package(
     dependencies: [],
     targets: [
         .binaryTarget(
-            name: "RDTensorFlowLiteC",
-            url: "https://github.com/readdle/tensorflow-lite-swift/releases/download/2.15.0/RDTensorFlowLiteC-2.15.0.xcframework.zip",
-            checksum: "2266eb72627f829be3f87b826f40d350d74a8df69837267698af4ec98799ae11"
+            name: "TensorFlowLiteC",
+            path: "./TensorFlowLiteC.xcframework"
         ),
         .target(
             name: "TensorFlowLite",
-            dependencies: ["RDTensorFlowLiteC"],
+            dependencies: ["TensorFlowLiteC"],
             linkerSettings: [
+                .unsafeFlags(["-lc++"], .when(platforms: [.iOS])),
                 .linkedLibrary("tensorflowlite_jni", .when(platforms: [.android]))
             ]
         ),

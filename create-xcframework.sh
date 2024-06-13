@@ -2,12 +2,12 @@
 
 set -ex
 
-VERSION="2.15.0"
+VERSION="2.16.1"
 
-rm -rf RDTensorFlowLite*
+rm -rf TensorFlowLiteC*
 
-mkdir RDTensorFlowLiteC
-pushd RDTensorFlowLiteC
+mkdir TensorFlowLiteC
+pushd TensorFlowLiteC
 	# Download precompiled android binaries from Maven Central
 	mkdir android
 	pushd android
@@ -15,69 +15,89 @@ pushd RDTensorFlowLiteC
 		unzip tensorflow-lite-$VERSION.aar
 	popd
 
-	# Clone and compile tensorflow lite for macOS (arm64 and x86_64)
+	# Clone and compile tensorflow lite for macOS (arm64 and x86_64) and ios/ios simulator (arm64)
 	mkdir -p macos/arm64
 	mkdir -p macos/x86_64
+	mkdir -p ios_sim_arm64
+	mkdir -p ios_arm64
 	git clone --depth 1 --branch v$VERSION https://github.com/tensorflow/tensorflow.git
 	pushd tensorflow
+
+		# Prepare Configuration Answers (Modify as needed)
+		answers=(
+		"" 	# Python? Default 
+		""  # Python library paths? Default 
+		n   # Radeon Open Compute? NO 
+		n   # CUDA? NO 
+		""  # Optimizations? Default 
+		n   # Android? NO 
+		y   # iOS? YES 
+		) 
+
+		configure_command="./configure"
+
+		# Function to send answers to ./configure (updated)
+		send_answers() {
+    		for answer in "${answers[@]}"; do
+        		if [ -z "$answer" ]; then   # Check if the answer is empty
+            		printf '\n'            # Send a newline character (Enter key)
+        		else
+            		printf '%s\n' "$answer"  # Send the answer followed by newline
+        		fi
+    		done
+		}
+
+		# Execute ./configure with automated answers
+		send_answers | $configure_command
+
 		bazel build --config=monolithic -c opt --cpu=darwin_x86_64 --host_cpu=darwin_arm64 --macos_minimum_os=10.15 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
 		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../macos/x86_64
 
 		bazel build --config=monolithic -c opt --cpu=darwin_arm64 --host_cpu=darwin_arm64 --macos_minimum_os=10.15 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
 		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../macos/arm64
 
-		# Merge 2 dylib to fat binary
-		lipo ../macos/arm64/libtensorflowlite_c.dylib \
-	 		../macos/x86_64/libtensorflowlite_c.dylib \
-	 		-output ../macos/libtensorflowlite_c.dylib -create
+		bazel build --config=ios_sim_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
+		rm -rf bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework
+		unzip bazel-bin/tensorflow/lite/ios/TensorFlowLiteC_framework.zip -d bazel-bin/tensorflow/lite/ios/
+		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework ../ios_sim_arm64
+
+		bazel build --config=ios_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
+		rm -rf bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework
+		unzip bazel-bin/tensorflow/lite/ios/TensorFlowLiteC_framework.zip -d bazel-bin/tensorflow/lite/ios/
+		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework ../ios_arm64
 	popd
 
-	# Copy headers
-	mkdir -p Headers
-	cp tensorflow/tensorflow/lite/builtin_ops.h Headers
-	cp tensorflow/tensorflow/lite/core/c/c_api_experimental.h Headers
-	cp tensorflow/tensorflow/lite/core/c/c_api_opaque.h Headers
-	cp tensorflow/tensorflow/lite/core/c/c_api_types.h Headers
-	cp tensorflow/tensorflow/lite/core/c/c_api.h Headers
-	cp tensorflow/tensorflow/lite/core/c/common.h Headers
-	cp tensorflow/tensorflow/lite/core/c/registration_external.h Headers
-	cp tensorflow/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h Headers
-	cp tensorflow/tensorflow/lite/core/async/c/types.h Headers
+	# Create framework for macOS
+	pushd macos
+		# Merge 2 dylib to fat binary
+		lipo arm64/libtensorflowlite_c.dylib \
+	 		x86_64/libtensorflowlite_c.dylib \
+	 		-output libtensorflowlite_c.dylib -create
 
-	# Fixed headers includes
-	find Headers -type f -name "*.h" -print0 | xargs -0 sed -i '' -e 's|#include "\(.*\)/\([^/]*\)"|#include "\2"|g'
+		mkdir TensorFlowLiteC.framework
+		mkdir TensorFlowLiteC.framework/Versions
+		mkdir TensorFlowLiteC.framework/Versions/A
+		mkdir TensorFlowLiteC.framework/Versions/A/Headers
+		mkdir TensorFlowLiteC.framework/Versions/A/Modules
 
-	# Add module map and umberlla header
-	echo """module RDTensorFlowLiteC [extern_c] {
-	header \"RDTensorFlowLiteC.h\"
-	export *
-}
-	""" > Headers/module.modulemap
-	
-	echo """#import \"builtin_ops.h\"
-#import \"c_api.h\"
-#import \"c_api_experimental.h\"
-#import \"common.h\"
-#import \"c_api_types.h\"
-#import \"xnnpack_delegate.h\"
-	""" > Headers/RDTensorFlowLiteC.h
+		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
+		cp libtensorflowlite_c.dylib TensorFlowLiteC.framework/Versions/A/
+		cp ../ios_arm64/TensorFlowLiteC.framework/Headers/* TensorFlowLiteC.framework/Versions/A/Headers/
+		cp ../ios_arm64/TensorFlowLiteC.framework/Modules/* TensorFlowLiteC.framework/Versions/A/Modules/
+
+		pushd TensorFlowLiteC.framework
+			ln -sf A Versions/Current
+			ln -sf Versions/Current/Headers Headers
+			ln -sf Versions/Current/Modules Modules
+			ln -sf Versions/Current/libtensorflowlite_c.dylib TensorFlowLiteC
+		popd
+	popd
 popd
 
-# Create tar gz for macOS CocoaPods
-mkdir RDTensorFlowLiteC-$VERSION-macos-arm64_x86_64
-cp RDTensorFlowLiteC/macos/libtensorflowlite_c.dylib RDTensorFlowLiteC-$VERSION-macos-arm64_x86_64
-cp -r RDTensorFlowLiteC/Headers RDTensorFlowLiteC-$VERSION-macos-arm64_x86_64
-tar -zcvf RDTensorFlowLiteC-$VERSION-macos-arm64_x86_64.tar.gz RDTensorFlowLiteC-$VERSION-macos-arm64_x86_64
-
-# Copy Android binaries to xcframework
-mkdir -p RDTensorFlowLiteC-$VERSION-android/include
-cp -r RDTensorFlowLiteC/Headers/* RDTensorFlowLiteC-$VERSION-android/include
-cp -r RDTensorFlowLiteC/android/jni/* RDTensorFlowLiteC-$VERSION-android
-tar -zcvf RDTensorFlowLiteC-$VERSION-android.tar.gz RDTensorFlowLiteC-$VERSION-android
-
-# Create xcframework for macOS
+# Create xcframework for all platforms
 xcodebuild -create-xcframework \
-	-library RDTensorFlowLiteC/macos/libtensorflowlite_c.dylib \
-	-headers RDTensorFlowLiteC/Headers \
-	-output ./RDTensorFlowLiteC.xcframework
-zip -ry RDTensorFlowLiteC-$VERSION.xcframework.zip RDTensorFlowLiteC.xcframework
+	-framework "TensorFlowLiteC/macos/TensorFlowLiteC.framework" \
+	-framework "TensorFlowLiteC/ios_sim_arm64/TensorFlowLiteC.framework" \
+	-framework "TensorFlowLiteC/ios_arm64/TensorFlowLiteC.framework" \
+	-output ./TensorFlowLiteC.xcframework
+zip -ry TensorFlowLiteC-$VERSION.xcframework.zip TensorFlowLiteC.xcframework

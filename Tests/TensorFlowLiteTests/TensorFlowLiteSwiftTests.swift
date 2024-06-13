@@ -6,6 +6,6 @@ final class TensorFlowLiteTests: XCTestCase {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        XCTAssertEqual(Runtime.version, "2.15.0")
+        XCTAssertEqual(Runtime.version, "2.16.1")
     }
 }
