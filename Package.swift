@@ -19,13 +19,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "TensorFlowLiteC",
-            path: "./TensorFlowLiteC.xcframework"
+            url: "https://github.com/readdle/tensorflow-lite-swift/releases/download/2.16.1/TensorFlowLiteC-2.16.1.xcframework.zip",
+            checksum: "609d872d61d5553071a1c179ad7ddfc1a73b3ddc020a615e2a726e39fff4105e"
         ),
         .target(
             name: "TensorFlowLite",
             dependencies: ["TensorFlowLiteC"],
             linkerSettings: [
-                .unsafeFlags(["-lc++"], .when(platforms: [.iOS])),
                 .linkedLibrary("tensorflowlite_jni", .when(platforms: [.android]))
             ]
         ),

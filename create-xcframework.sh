@@ -18,8 +18,8 @@ pushd TensorFlowLiteC
 	# Clone and compile tensorflow lite for macOS (arm64 and x86_64) and ios/ios simulator (arm64)
 	mkdir -p macos/arm64
 	mkdir -p macos/x86_64
-	mkdir -p ios_sim_arm64
-	mkdir -p ios_arm64
+	mkdir -p ios_sim
+	mkdir -p ios
 	git clone --depth 1 --branch v$VERSION https://github.com/tensorflow/tensorflow.git
 	pushd tensorflow
 
@@ -50,24 +50,25 @@ pushd TensorFlowLiteC
 		# Execute ./configure with automated answers
 		send_answers | $configure_command
 
+		# Firstly we build framework to gte proper headers and module file
+		bazel build --config=ios_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
+		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework/Headers ../
+		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework/Modules ../
+
 		bazel build --config=monolithic -c opt --cpu=darwin_x86_64 --host_cpu=darwin_arm64 --macos_minimum_os=10.15 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
 		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../macos/x86_64
 
 		bazel build --config=monolithic -c opt --cpu=darwin_arm64 --host_cpu=darwin_arm64 --macos_minimum_os=10.15 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
 		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../macos/arm64
 
-		bazel build --config=ios_sim_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
-		rm -rf bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework
-		unzip bazel-bin/tensorflow/lite/ios/TensorFlowLiteC_framework.zip -d bazel-bin/tensorflow/lite/ios/
-		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework ../ios_sim_arm64
+		bazel build --config=ios_sim_arm64 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
+		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../ios_sim
 
-		bazel build --config=ios_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
-		rm -rf bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework
-		unzip bazel-bin/tensorflow/lite/ios/TensorFlowLiteC_framework.zip -d bazel-bin/tensorflow/lite/ios/
-		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework ../ios_arm64
+		bazel build --config=ios_arm64 tensorflow/lite/c:libtensorflowlite_c.dylib --verbose_failures --jobs=4
+		cp bazel-bin/tensorflow/lite/c/libtensorflowlite_c.dylib ../ios
 	popd
 
-	# Create framework for macOS
+	# Create framework for macos
 	pushd macos
 		# Merge 2 dylib to fat binary
 		lipo arm64/libtensorflowlite_c.dylib \
@@ -75,29 +76,53 @@ pushd TensorFlowLiteC
 	 		-output libtensorflowlite_c.dylib -create
 
 		mkdir TensorFlowLiteC.framework
-		mkdir TensorFlowLiteC.framework/Versions
-		mkdir TensorFlowLiteC.framework/Versions/A
-		mkdir TensorFlowLiteC.framework/Versions/A/Headers
-		mkdir TensorFlowLiteC.framework/Versions/A/Modules
+		mkdir TensorFlowLiteC.framework/Headers
+		mkdir TensorFlowLiteC.framework/Modules
 
 		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
-		cp libtensorflowlite_c.dylib TensorFlowLiteC.framework/Versions/A/
-		cp ../ios_arm64/TensorFlowLiteC.framework/Headers/* TensorFlowLiteC.framework/Versions/A/Headers/
-		cp ../ios_arm64/TensorFlowLiteC.framework/Modules/* TensorFlowLiteC.framework/Versions/A/Modules/
+		mv libtensorflowlite_c.dylib TensorFlowLiteC.framework/TensorFlowLiteC
+		cp ../Headers/* TensorFlowLiteC.framework/Headers/
+		cp ../Modules/* TensorFlowLiteC.framework/Modules/
 
-		pushd TensorFlowLiteC.framework
-			ln -sf A Versions/Current
-			ln -sf Versions/Current/Headers Headers
-			ln -sf Versions/Current/Modules Modules
-			ln -sf Versions/Current/libtensorflowlite_c.dylib TensorFlowLiteC
-		popd
+		cp ../../Info-macos.plist TensorFlowLiteC.framework/
+		mv TensorFlowLiteC.framework/Info-macos.plist TensorFlowLiteC.framework/Info.plist
+	popd
+
+	# Create framework for iOS
+	pushd ios_sim
+		mkdir TensorFlowLiteC.framework
+		mkdir TensorFlowLiteC.framework/Headers
+		mkdir TensorFlowLiteC.framework/Modules
+
+		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
+		mv libtensorflowlite_c.dylib TensorFlowLiteC.framework/TensorFlowLiteC
+		cp ../Headers/* TensorFlowLiteC.framework/Headers/
+		cp ../Modules/* TensorFlowLiteC.framework/Modules/
+
+		cp ../../Info-ios.plist TensorFlowLiteC.framework/
+		mv TensorFlowLiteC.framework/Info-ios.plist TensorFlowLiteC.framework/Info.plist
+	popd
+
+	# Create framework for iOS Simulator
+	pushd ios
+		mkdir TensorFlowLiteC.framework
+		mkdir TensorFlowLiteC.framework/Headers
+		mkdir TensorFlowLiteC.framework/Modules
+
+		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
+		mv libtensorflowlite_c.dylib TensorFlowLiteC.framework/TensorFlowLiteC
+		cp ../Headers/* TensorFlowLiteC.framework/Headers/
+		cp ../Modules/* TensorFlowLiteC.framework/Modules/
+
+		cp ../../Info-ios-sim.plist TensorFlowLiteC.framework/
+		mv TensorFlowLiteC.framework/Info-ios-sim.plist TensorFlowLiteC.framework/Info.plist
 	popd
 popd
 
 # Create xcframework for all platforms
 xcodebuild -create-xcframework \
 	-framework "TensorFlowLiteC/macos/TensorFlowLiteC.framework" \
-	-framework "TensorFlowLiteC/ios_sim_arm64/TensorFlowLiteC.framework" \
-	-framework "TensorFlowLiteC/ios_arm64/TensorFlowLiteC.framework" \
+	-framework "TensorFlowLiteC/ios_sim/TensorFlowLiteC.framework" \
+	-framework "TensorFlowLiteC/ios/TensorFlowLiteC.framework" \
 	-output ./TensorFlowLiteC.xcframework
 zip -ry TensorFlowLiteC-$VERSION.xcframework.zip TensorFlowLiteC.xcframework
