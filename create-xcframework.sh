@@ -52,6 +52,14 @@ pushd TensorFlowLiteC
 
 		# Firstly we build framework to gte proper headers and module file
 		bazel build --config=ios_arm64 -c opt //tensorflow/lite/ios:TensorFlowLiteC_framework --verbose_failures --jobs=4
+		pushd bazel-bin/tensorflow/lite/ios
+		    if [ -d "TensorFlowLiteC.framework" ]; then
+		        echo "TensorFlowLiteC.framework exists."
+		    else
+		        unzip TensorFlowLiteC_framework.zip
+		    fi
+		popd
+		
 		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework/Headers ../
 		cp -r bazel-bin/tensorflow/lite/ios/TensorFlowLiteC.framework/Modules ../
 
