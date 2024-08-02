@@ -96,23 +96,8 @@ pushd TensorFlowLiteC
 		mv TensorFlowLiteC.framework/Info-macos.plist TensorFlowLiteC.framework/Info.plist
 	popd
 
-	# Create framework for iOS
-	pushd ios_sim
-		mkdir TensorFlowLiteC.framework
-		mkdir TensorFlowLiteC.framework/Headers
-		mkdir TensorFlowLiteC.framework/Modules
-
-		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
-		mv libtensorflowlite_c.dylib TensorFlowLiteC.framework/TensorFlowLiteC
-		cp ../Headers/* TensorFlowLiteC.framework/Headers/
-		cp ../Modules/* TensorFlowLiteC.framework/Modules/
-
-		cp ../../Info-ios.plist TensorFlowLiteC.framework/
-		mv TensorFlowLiteC.framework/Info-ios.plist TensorFlowLiteC.framework/Info.plist
-	popd
-
 	# Create framework for iOS Simulator
-	pushd ios
+	pushd ios_sim
 		mkdir TensorFlowLiteC.framework
 		mkdir TensorFlowLiteC.framework/Headers
 		mkdir TensorFlowLiteC.framework/Modules
@@ -124,6 +109,21 @@ pushd TensorFlowLiteC
 
 		cp ../../Info-ios-sim.plist TensorFlowLiteC.framework/
 		mv TensorFlowLiteC.framework/Info-ios-sim.plist TensorFlowLiteC.framework/Info.plist
+	popd
+
+	# Create framework for iOS
+	pushd ios
+		mkdir TensorFlowLiteC.framework
+		mkdir TensorFlowLiteC.framework/Headers
+		mkdir TensorFlowLiteC.framework/Modules
+
+		install_name_tool -id @rpath/TensorFlowLiteC.framework/TensorFlowLiteC libtensorflowlite_c.dylib
+		mv libtensorflowlite_c.dylib TensorFlowLiteC.framework/TensorFlowLiteC
+		cp ../Headers/* TensorFlowLiteC.framework/Headers/
+		cp ../Modules/* TensorFlowLiteC.framework/Modules/
+
+		cp ../../Info-ios.plist TensorFlowLiteC.framework/
+		mv TensorFlowLiteC.framework/Info-ios.plist TensorFlowLiteC.framework/Info.plist
 	popd
 popd
 
