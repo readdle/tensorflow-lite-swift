@@ -2,18 +2,18 @@
 
 set -ex
 
-VERSION="2.16.1"
+VERSION="2.17.0"
 
 rm -rf TensorFlowLiteC*
 
 mkdir TensorFlowLiteC
 pushd TensorFlowLiteC
 	# Download precompiled android binaries from Maven Central
-	mkdir android
-	pushd android
-		wget https://repo1.maven.org/maven2/org/tensorflow/tensorflow-lite/$VERSION/tensorflow-lite-$VERSION.aar
-		unzip tensorflow-lite-$VERSION.aar
-	popd
+	# mkdir android
+	# pushd android
+	# 	wget https://repo1.maven.org/maven2/org/tensorflow/tensorflow-lite/$VERSION/tensorflow-lite-$VERSION.aar
+	# 	unzip tensorflow-lite-$VERSION.aar
+	# popd
 
 	# Clone and compile tensorflow lite for macOS (arm64 and x86_64) and ios/ios simulator (arm64)
 	mkdir -p macos/arm64
